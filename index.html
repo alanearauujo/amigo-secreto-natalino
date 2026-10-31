@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amigo Secreto Natalino 🎄</title>
+    <!-- Biblioteca do EmailJS para envio real de e-mails -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <style>
+        :root {
+            --ios-bg: radial-gradient(circle at 20% 20%, #1a472a, #0d2618 45%, #3a0ca3 120%);
+            --christmas-red: #ff3b30;
+            --christmas-green: #34c759;
+            --christmas-gold: #ffd60a;
+            --glass-bg: rgba(255, 255, 255, 0.12);
+            --glass-border: rgba(255, 255, 255, 0.25);
+            --glass-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.7);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f2e1e 0%, #1b4332 45%, #4a1525 100%);
+            color: var(--text-primary);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Luzes de fundo desfocadas para reforçar o efeito de vidro (Glassmorphism) */
+        .ambient-light {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(90px);
+            z-index: 0;
+            pointer-events: none;
+        }
+        .light-1 { width: 350px; height: 350px; background: rgba(214, 40, 40, 0.45); top: -80px; left: -80px; }
+        .light-2 { width: 400px; height: 400px; background: rgba(45, 106, 79, 0.5); bottom: -100px; right: -80px; }
+        .light-3 { width: 250px; height: 250px; background: rgba(255, 183, 3, 0.25); top: 40%; left: 60%; }
+
+        /* Container Principal estilo iOS Glass */
+        .ios-card {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 580px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(25px) saturate(180%);
+            -webkit-backdrop-filter: blur(25px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            border-radius: 28px;
+            padding: 32px;
+            box-shadow: var(--glass-shadow);
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        header h1 {
+            font-size: 1.85rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: 0.92rem;
+        }
+
+        /* Segmented Control (Abas estilo iOS) */
+        .segmented-control {
+            display: flex;
+            background: rgba(0, 0, 0, 0.28);
+            padding: 4px;
+            border-radius: 14px;
+            margin-bottom: 28px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px 14px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.9rem;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tab-btn.active {
+            background: rgba(255, 255, 255, 0.22);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            backdrop-filter: blur(10px);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.35s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Formulário e Inputs */
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            padding-left: 4px;
+        }
+
+        .ios-input {
+            width: 100%;
+            padding: 13px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 14px;
+            color: #fff;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .ios-input::placeholder {
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+        .ios-input:focus {
+            background: rgba(255, 255, 255, 0.16);
+            border-color: rgba(255, 255, 255, 0.55);
+            box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
+        }
+
+        /* Chips rápidos de sugestão */
+        .suggestion-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .chip {
+            font-size: 0.75rem;
+            padding: 5px 10px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: 0.2s;
+            color: var(--text-secondary);
+        }
+
+        .chip:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+
+        /* Botões iOS */
+        .btn {
+            width: 100%;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 14px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: rgba(255, 255, 255, 0.9);
+            color: #1b4332;
+            margin-top: 10px;
+        }
+
+        .btn-primary:hover {
+            background: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-christmas {
+            background: linear-gradient(135deg, #e63946, #d62828);
+            color: white;
+            box-shadow: 0 8px 24px rgba(214, 40, 40, 0.4);
+        }
+
+        .btn-christmas:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.08);
+        }
+
+        /* Lista de Participantes */
+        .participants-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 24px 0 12px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .participant-list {
+            list-style: none;
+            max-height: 230px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .participant-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 14px;
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 14px;
+            margin-bottom: 8px;
+        }
+
+        .participant-info strong {
+            display: block;
+            font-size: 0.95rem;
+        }
+
+        .participant-info span {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            display: block;
+        }
+
+        .participant-info small {
+            display: inline-block;
+            margin-top: 4px;
+            font-size: 0.75rem;
+            color: #ffd166;
+            background: rgba(255, 209, 102, 0.12);
+            padding: 2px 8px;
+            border-radius: 8px;
+        }
+
+        .btn-remove {
+            background: rgba(255, 59, 48, 0.2);
+            color: #ff6b6b;
+            border: 1px solid rgba(255, 59, 48, 0.3);
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* Área de Sorteio */
+        .draw-status-box {
+            text-align: center;
+            padding: 24px 16px;
+            background: rgba(0, 0, 0, 0.18);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .draw-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .draw-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.09);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 14px;
+        }
+
+        .btn-small {
+            padding: 7px 12px;
+            font-size: 0.78rem;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-small:hover {
+            background: rgba(255, 255, 255, 0.28);
+        }
+
+        .toast {
+            margin-top: 14px;
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            text-align: center;
+            display: none;
+            background: rgba(52, 199, 89, 0.25);
+            border: 1px solid rgba(52, 199, 89, 0.5);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Luzes Natalinas de Fundo (Blur iOS) -->
+    <div class="ambient-light light-1"></div>
+    <div class="ambient-light light-2"></div>
+    <div class="ambient-light light-3"></div>
+
+    <main class="ios-card">
+        <header>
+            <h1>🎄 Amigo Secreto</h1>
+            <p>Organize sua troca de presentes com estilo</p>
+        </header>
+
+        <!-- Navegação em Abas estilo iOS -->
+        <div class="segmented-control">
+            <button class="tab-btn active" onclick="switchTab('cadastro')">1. Participantes</button>
+            <button class="tab-btn" onclick="switchTab('sorteio')">2. Sorteio & Envio</button>
+        </div>
+
+        <!-- ABA 1: CADASTRO -->
+        <section id="tab-cadastro" class="tab-content active">
+            <div class="form-group">
+                <label>Nome da Pessoa</label>
+                <input type="text" id="nameInput" class="ios-input" placeholder="Ex: Ana Clara">
+            </div>
+
+            <div class="form-group">
+                <label>E-mail (para receber quem tirou)</label>
+                <input type="email" id="emailInput" class="ios-input" placeholder="Ex: ana@email.com">
+            </div>
+
+            <div class="form-group">
+                <label>Sugestão de Presente 🎁</label>
+                <input type="text" id="giftInput" class="ios-input" placeholder="Ex: Livro de suspense, Chocolate, Perfume...">
+                <div class="suggestion-chips">
+                    <span class="chip" onclick="addChip('📚 Livros')">📚 Livros</span>
+                    <span class="chip" onclick="addChip('🍫 Chocolates')">🍫 Chocolates</span>
+                    <span class="chip" onclick="addChip('👕 Roupa / Vale-presente')">👕 Vale-presente</span>
+                    <span class="chip" onclick="addChip('🎧 Acessórios Tech')">🎧 Tech</span>
+                    <span class="chip" onclick="addChip('☕ Caneca / Café')">☕ Caneca</span>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="addParticipant()">+ Adicionar à Lista</button>
+
+            <div class="participants-header">
+                <span>Pessoas cadastradas</span>
+                <strong id="counterBadge">0 participantes</strong>
+            </div>
+
+            <ul id="participantList" class="participant-list"></ul>
+
+            <button class="btn btn-christmas" style="margin-top: 14px;" onclick="switchTab('sorteio')">
+                Ir para a Aba de Sorteio →
+            </button>
+        </section>
+
+        <!-- ABA 2: SORTEIO E DISPARO DE E-MAIL -->
+        <section id="tab-sorteio" class="tab-content">
+            <div class="draw-status-box">
+                <h3 style="margin-bottom: 8px;">Pronto para misturar os nomes? ✨</h3>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 18px;">
+                    O algoritmo garante que ninguém tire a si mesmo e que não haja pares fechados isolados.
+                </p>
+                <button class="btn btn-christmas" onclick="performDraw()">
+                    🎲 Realizar Sorteio e Enviar E-mails
+                </button>
+                <div id="statusToast" class="toast"></div>
+            </div>
+
+            <div id="resultsContainer" style="display: none;">
+                <div class="participants-header">
+                    <span>Painel de Participantes (Conferência / Reenvio)</span>
+                </div>
+                <div id="drawList" class="draw-grid"></div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // =========================================================================
+        // CONFIGURAÇÃO DO EMAILJS (Opcional para disparo real de e-mail)
+        // Crie uma conta grátis em https://www.emailjs.com/ e preencha abaixo:
+        // =========================================================================
+        const EMAILJS_CONFIG = {
+            ENABLED: true, // Mude para true quando colocar suas chaves do EmailJS
+            PUBLIC_KEY: "c0GQdALTAo-g_-CykNsea",
+            SERVICE_ID: "service_6hp9plk",
+            TEMPLATE_ID: "template_csbvdct"
+        };
+
+        if (EMAILJS_CONFIG.ENABLED) {
+            emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
+        }
+
+        let participants = [];
+        let drawResults = []; // [{ giver, receiver }]
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach((btn, idx) => {
+                btn.classList.toggle('active', (tabName === 'cadastro' && idx === 0) || (tabName === 'sorteio' && idx === 1));
+            });
+            document.getElementById('tab-cadastro').classList.toggle('active', tabName === 'cadastro');
+            document.getElementById('tab-sorteio').classList.toggle('active', tabName === 'sorteio');
+        }
+
+        function addChip(text) {
+            const giftInput = document.getElementById('giftInput');
+            giftInput.value = giftInput.value ? `${giftInput.value}, ${text}` : text;
+        }
+
+        function addParticipant() {
+            const nameEl = document.getElementById('nameInput');
+            const emailEl = document.getElementById('emailInput');
+            const giftEl = document.getElementById('giftInput');
+
+            const name = nameEl.value.trim();
+            const email = emailEl.value.trim();
+            const gift = giftEl.value.trim() || "Surpresa! Qualquer lembrancinha com carinho 🎄";
+
+            if (!name || !email) {
+                alert("Por favor, preencha o nome e o e-mail do participante!");
+                return;
+            }
+
+            if (participants.some(p => p.email.toLowerCase() === email.toLowerCase())) {
+                alert("Este e-mail já foi cadastrado!");
+                return;
+            }
+
+            participants.push({ name, email, gift });
+            nameEl.value = '';
+            emailEl.value = '';
+            giftEl.value = '';
+            nameEl.focus();
+
+            renderParticipants();
+        }
+
+        function removeParticipant(index) {
+            participants.splice(index, 1);
+            renderParticipants();
+        }
+
+        function renderParticipants() {
+            const list = document.getElementById('participantList');
+            const badge = document.getElementById('counterBadge');
+            list.innerHTML = '';
+            badge.textContent = `${participants.length} participante(s)`;
+
+            participants.forEach((p, index) => {
+                const li = document.createElement('li');
+                li.className = 'participant-item';
+                li.innerHTML = `
+                    <div class="participant-info">
+                        <strong>${p.name}</strong>
+                        <span>✉️ ${p.email}</span>
+                        <small>🎁 Sugestão: ${p.gift}</small>
+                    </div>
+                    <button class="btn-remove" onclick="removeParticipant(${index})" title="Remover">×</button>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        // Algoritmo de Embaralhamento Circular (Ninguém tira a si mesmo)
+        function performDraw() {
+            if (participants.length < 3) {
+                alert("Cadastre pelo menos 3 pessoas na primeira aba para realizar o Amigo Secreto!");
+                switchTab('cadastro');
+                return;
+            }
+
+            const shuffled = [...participants];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+
+            // Cada pessoa na posição [i] tira a pessoa na posição [i + 1]
+            drawResults = shuffled.map((giver, index) => {
+                const receiver = shuffled[(index + 1) % shuffled.length];
+                return { giver, receiver };
+            });
+
+            renderDrawList();
+            sendAllEmails();
+        }
+
+        function renderDrawList() {
+            const container = document.getElementById('resultsContainer');
+            const drawList = document.getElementById('drawList');
+            container.style.display = 'block';
+            drawList.innerHTML = '';
+
+            drawResults.forEach((pair, idx) => {
+                const card = document.createElement('div');
+                card.className = 'draw-card';
+                card.innerHTML = `
+                    <div>
+                        <strong>🎅 ${pair.giver.name}</strong>
+                        <div style="font-size: 0.78rem; color: var(--text-secondary);">${pair.giver.email}</div>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                        <button class="btn-small" onclick="revealSecret(${idx})">👀 Tirar na Tela</button>
+                        <button class="btn-small" onclick="sendSingleEmail(${idx})">📩 E-mail</button>
+                    </div>
+                `;
+                drawList.appendChild(card);
+            });
+        }
+
+        function revealSecret(index) {
+            const pair = drawResults[index];
+            const confirmView = confirm(`Você é ${pair.giver.name}? Clique em OK apenas se for você para ver quem você tirou em segredo!`);
+            if (confirmView) {
+                alert(
+                    `🎄 Olá, ${pair.giver.name}!\n\n` +
+                    `Seu Amigo Secreto é: ✨ ${pair.receiver.name} ✨\n` +
+                    `🎁 Sugestão de presente: ${pair.receiver.gift}`
+                );
+            }
+        }
+
+        async function sendSingleEmail(index) {
+            const pair = drawResults[index];
+
+            // Se o EmailJS estiver configurado, envia direto em background
+            if (EMAILJS_CONFIG.ENABLED) {
+                try {
+                    await emailjs.send(EMAILJS_CONFIG.SERVICE_ID, EMAILJS_CONFIG.TEMPLATE_ID, {
+                        to_name: pair.giver.name,
+                        to_email: pair.giver.email,
+                        secret_friend: pair.receiver.name,
+                        gift_suggestion: pair.receiver.gift
+                    });
+                    showToast(`✅ E-mail enviado com sucesso para ${pair.giver.name}!`);
+                } catch (err) {
+                    alert("Erro ao enviar pelo EmailJS. Verifique suas chaves no código.");
+                    console.error(err);
+                }
+            } else {
+                // Fallback: Abre o cliente de e-mail ou simula o disparo
+                const subject = encodeURIComponent("🎄 Resultado do seu Amigo Secreto!");
+                const body = encodeURIComponent(
+                    `Olá, ${pair.giver.name}! Ho Ho Ho! 🎅\n\n` +
+                    `O sorteio do Amigo Secreto foi realizado!\n` +
+                    `Você tirou: ${pair.receiver.name}\n` +
+                    `🎁 Sugestão de presente dessa pessoa: ${pair.receiver.gift}\n\n` +
+                    `Guarde segredo até o dia da festa!`
+                );
+                window.open(`mailto:${pair.giver.email}?subject=${subject}&body=${body}`);
+            }
+        }
+
+        async function sendAllEmails() {
+            const toast = document.getElementById('statusToast');
+            if (EMAILJS_CONFIG.ENABLED) {
+                showToast("⏳ Disparando e-mails para todos os participantes...");
+                for (let i = 0; i < drawResults.length; i++) {
+                    await sendSingleEmail(i);
+                }
+                showToast("🎉 Sorteio concluído! Todos receberam seus amigos secretos no e-mail!");
+            } else {
+                showToast("✨ Sorteio realizado! Clique em 'Tirar na Tela' ou configure o EmailJS para envio automático.");
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('statusToast');
+            toast.style.display = 'block';
+            toast.textContent = message;
+        }
+    </script>
+</body>
+</html>
