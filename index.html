@@ -439,7 +439,7 @@
         const FIREBASE_DB_URL = "https://amigo-secreto-46e63-default-rtdb.firebaseio.com";
 
         // =========================================================================
-        // 2. CONFIGURAÇÃO DO EMAILJS (Suas 3 chaves)
+        // 2. CONFIGURAÇÃO DO EMAILJS (Com a sua Public Key correta!)
         // =========================================================================
         const EMAILJS_CONFIG = {
             ENABLED: true,
@@ -449,7 +449,9 @@
         };
 
         if (EMAILJS_CONFIG.ENABLED) {
-            emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
+            emailjs.init({
+                publicKey: EMAILJS_CONFIG.PUBLIC_KEY
+            });
         }
 
         const cleanDbUrl = FIREBASE_DB_URL.replace(/\/$/, "");
@@ -487,7 +489,6 @@
                     drawResults = data.drawResults || [];
                     saveLocalBackup();
                 } else if (participants.length > 0) {
-                    // Se a nuvem estava vazia mas já tínhamos dados locais, sobe para a nuvem
                     await saveSharedData();
                 }
                 updateSyncBadge("☁️ Lista Sincronizada na Nuvem", "#34c759");
@@ -690,16 +691,24 @@
 
             if (EMAILJS_CONFIG.ENABLED) {
                 try {
-                    await emailjs.send(EMAILJS_CONFIG.SERVICE_ID, EMAILJS_CONFIG.TEMPLATE_ID, {
-                        to_name: pair.giver.name,
-                        to_email: pair.giver.email,
-                        secret_friend: pair.receiver.name,
-                        gift_suggestion: pair.receiver.gift
-                    });
-                    showToast(`✅ E-mail enviado para ${pair.giver.name}!`);
+                    await emailjs.send(
+                        EMAILJS_CONFIG.SERVICE_ID,
+                        EMAILJS_CONFIG.TEMPLATE_ID,
+                        {
+                            to_name: pair.giver.name,
+                            to_email: pair.giver.email,
+                            secret_friend: pair.receiver.name,
+                            gift_suggestion: pair.receiver.gift
+                        },
+                        {
+                            publicKey: EMAILJS_CONFIG.PUBLIC_KEY
+                        }
+                    );
+                    showToast(`✅ E-mail enviado com sucesso para ${pair.giver.name}!`);
                 } catch (err) {
-                    alert("Erro ao enviar pelo EmailJS. Verifique suas chaves.");
-                    console.error(err);
+                    const detalheErro = err?.text || err?.message || JSON.stringify(err);
+                    alert(`Erro no EmailJS (${pair.giver.name}): ${detalheErro}`);
+                    console.error("Detalhes do erro EmailJS:", err);
                 }
             }
         }
