@@ -427,10 +427,9 @@
 
    <script>
         // =========================================================================
-        // 1. COLE AQUI O LINK DO SEU FIREBASE REALTIME DATABASE
-        // Exemplo: "https://meu-amigo-secreto-default-rtdb.firebaseio.com"
+        // 1. LINK DO SEU FIREBASE REALTIME DATABASE
         // =========================================================================
-        const FIREBASE_DB_URL = "https://amigo-secreto-46e63-default-rtdb.firebaseio.com/";
+        const FIREBASE_DB_URL = "https://amigo-secreto-46e63-default-rtdb.firebaseio.com";
 
         // =========================================================================
         // 2. CONFIGURAÇÃO DO EMAILJS (Suas 3 chaves)
@@ -442,24 +441,21 @@
             TEMPLATE_ID: "template_csbvdct"
         };
 
-        if (EMAILJS_CONFIG.ENABLED && EMAILJS_CONFIG.PUBLIC_KEY !== "c0GQdALTAo-g_-CykNsea") {
+        // Inicia o EmailJS corretamente com a sua chave
+        if (EMAILJS_CONFIG.ENABLED) {
             emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
         }
 
-        // Remove barra final do link do Firebase se houver
         const cleanDbUrl = FIREBASE_DB_URL.replace(/\/$/, "");
 
         let participants = [];
         let drawResults = [];
 
-        // Busca os dados compartilhados na nuvem
+        // Busca os dados compartilhados na nuvem (Firebase)
         async function loadSharedData() {
-            if (FIREBASE_DB_URL === "https://amigo-secreto-46e63-default-rtdb.firebaseio.com/") {
-                console.warn("Configure o link do Firebase para sincronizar entre vários celulares!");
-                return;
-            }
             try {
-                const res = await fetch(`${cleanDbUrl}/amigoSecreto.json`);
+                const res = await fetch(`${cleanDbUrl}/amigoSecreto.json`, { cache: "no-store" });
+                if (!res.ok) throw new Error("Permissão negada no Firebase");
                 const data = await res.json();
                 participants = (data && data.participants) ? data.participants : [];
                 drawResults = (data && data.drawResults) ? data.drawResults : [];
@@ -472,18 +468,17 @@
 
         // Salva os dados na nuvem para todos os amigos verem
         async function saveSharedData() {
-            if (FIREBASE_DB_URL === "https://amigo-secreto-46e63-default-rtdb.firebaseio.com") {
-                alert("⚠️ Você ainda não colou o link do Firebase no código! Veja o Passo 1.");
-                return;
-            }
             try {
-                await fetch(`${cleanDbUrl}/amigoSecreto.json`, {
+                const res = await fetch(`${cleanDbUrl}/amigoSecreto.json`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ participants, drawResults })
                 });
+                if (!res.ok) {
+                    alert("⚠️ O Firebase bloqueou o salvamento! Vá na aba 'Regras' (Rules) do seu Realtime Database e mude read e write para true.");
+                }
             } catch (err) {
-                alert("Erro ao salvar na nuvem. Verifique se o Realtime Database está em Modo de Teste.");
+                alert("Erro ao salvar na nuvem. Verifique sua conexão ou as Regras do Firebase.");
                 console.error(err);
             }
         }
@@ -494,7 +489,7 @@
             });
             document.getElementById('tab-cadastro').classList.toggle('active', tabName === 'cadastro');
             document.getElementById('tab-sorteio').classList.toggle('active', tabName === 'sorteio');
-            loadSharedData(); // Atualiza a lista ao trocar de aba
+            loadSharedData();
         }
 
         function addChip(text) {
@@ -516,7 +511,6 @@
                 return;
             }
 
-            // Atualiza antes de salvar para não sobrescrever um amigo que acabou de entrar
             await loadSharedData();
 
             if (participants.some(p => p.email.toLowerCase() === email.toLowerCase())) {
@@ -647,7 +641,7 @@
         async function sendSingleEmail(index) {
             const pair = drawResults[index];
 
-            if (EMAILJS_CONFIG.ENABLED && EMAILJS_CONFIG.PUBLIC_KEY !== "SUA_PUBLIC_KEY_AQUI") {
+            if (EMAILJS_CONFIG.ENABLED) {
                 try {
                     await emailjs.send(EMAILJS_CONFIG.SERVICE_ID, EMAILJS_CONFIG.TEMPLATE_ID, {
                         to_name: pair.giver.name,
@@ -664,7 +658,7 @@
         }
 
         async function sendAllEmails() {
-            if (EMAILJS_CONFIG.ENABLED && EMAILJS_CONFIG.PUBLIC_KEY !== "SUA_PUBLIC_KEY_AQUI") {
+            if (EMAILJS_CONFIG.ENABLED) {
                 showToast("⏳ Disparando e-mails para todos os participantes...");
                 for (let i = 0; i < drawResults.length; i++) {
                     await sendSingleEmail(i);
@@ -681,12 +675,12 @@
             toast.textContent = message;
         }
 
-        // Carrega a lista ao abrir o site e atualiza sozinho a cada 5 segundos
         window.addEventListener('DOMContentLoaded', () => {
             loadSharedData();
             setInterval(loadSharedData, 5000);
         });
     </script>
-    </script>
+</body>
+</html>
 </body>
 </html>
