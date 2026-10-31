@@ -425,24 +425,68 @@
         </section>
     </main>
 
-    <script>
+   <script>
         // =========================================================================
-        // CONFIGURAÇÃO DO EMAILJS (Opcional para disparo real de e-mail)
-        // Crie uma conta grátis em https://www.emailjs.com/ e preencha abaixo:
+        // 1. COLE AQUI O LINK DO SEU FIREBASE REALTIME DATABASE
+        // Exemplo: "https://meu-amigo-secreto-default-rtdb.firebaseio.com"
+        // =========================================================================
+        const FIREBASE_DB_URL = "https://amigo-secreto-46e63-default-rtdb.firebaseio.com/";
+
+        // =========================================================================
+        // 2. CONFIGURAÇÃO DO EMAILJS (Suas 3 chaves)
         // =========================================================================
         const EMAILJS_CONFIG = {
-            ENABLED: true, // Mude para true quando colocar suas chaves do EmailJS
+            ENABLED: true,
             PUBLIC_KEY: "c0GQdALTAo-g_-CykNsea",
             SERVICE_ID: "service_6hp9plk",
             TEMPLATE_ID: "template_csbvdct"
         };
 
-        if (EMAILJS_CONFIG.ENABLED) {
+        if (EMAILJS_CONFIG.ENABLED && EMAILJS_CONFIG.PUBLIC_KEY !== "c0GQdALTAo-g_-CykNsea") {
             emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
         }
 
+        // Remove barra final do link do Firebase se houver
+        const cleanDbUrl = FIREBASE_DB_URL.replace(/\/$/, "");
+
         let participants = [];
-        let drawResults = []; // [{ giver, receiver }]
+        let drawResults = [];
+
+        // Busca os dados compartilhados na nuvem
+        async function loadSharedData() {
+            if (FIREBASE_DB_URL === "https://amigo-secreto-46e63-default-rtdb.firebaseio.com/") {
+                console.warn("Configure o link do Firebase para sincronizar entre vários celulares!");
+                return;
+            }
+            try {
+                const res = await fetch(`${cleanDbUrl}/amigoSecreto.json`);
+                const data = await res.json();
+                participants = (data && data.participants) ? data.participants : [];
+                drawResults = (data && data.drawResults) ? data.drawResults : [];
+                renderParticipants();
+                renderDrawList();
+            } catch (err) {
+                console.error("Erro ao carregar dados da nuvem:", err);
+            }
+        }
+
+        // Salva os dados na nuvem para todos os amigos verem
+        async function saveSharedData() {
+            if (FIREBASE_DB_URL === "https://amigo-secreto-46e63-default-rtdb.firebaseio.com/") {
+                alert("⚠️ Você ainda não colou o link do Firebase no código! Veja o Passo 1.");
+                return;
+            }
+            try {
+                await fetch(`${cleanDbUrl}/amigoSecreto.json`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ participants, drawResults })
+                });
+            } catch (err) {
+                alert("Erro ao salvar na nuvem. Verifique se o Realtime Database está em Modo de Teste.");
+                console.error(err);
+            }
+        }
 
         function switchTab(tabName) {
             document.querySelectorAll('.tab-btn').forEach((btn, idx) => {
@@ -450,6 +494,7 @@
             });
             document.getElementById('tab-cadastro').classList.toggle('active', tabName === 'cadastro');
             document.getElementById('tab-sorteio').classList.toggle('active', tabName === 'sorteio');
+            loadSharedData(); // Atualiza a lista ao trocar de aba
         }
 
         function addChip(text) {
@@ -457,7 +502,7 @@
             giftInput.value = giftInput.value ? `${giftInput.value}, ${text}` : text;
         }
 
-        function addParticipant() {
+        async function addParticipant() {
             const nameEl = document.getElementById('nameInput');
             const emailEl = document.getElementById('emailInput');
             const giftEl = document.getElementById('giftInput');
@@ -467,34 +512,53 @@
             const gift = giftEl.value.trim() || "Surpresa! Qualquer lembrancinha com carinho 🎄";
 
             if (!name || !email) {
-                alert("Por favor, preencha o nome e o e-mail do participante!");
+                alert("Por favor, preencha o seu nome e e-mail!");
                 return;
             }
 
+            // Atualiza antes de salvar para não sobrescrever um amigo que acabou de entrar
+            await loadSharedData();
+
             if (participants.some(p => p.email.toLowerCase() === email.toLowerCase())) {
-                alert("Este e-mail já foi cadastrado!");
+                alert("Este e-mail já está cadastrado na lista!");
                 return;
             }
 
             participants.push({ name, email, gift });
+            await saveSharedData();
+
             nameEl.value = '';
             emailEl.value = '';
             giftEl.value = '';
-            nameEl.focus();
+            renderParticipants();
+            alert(`🎉 Pronto, ${name}! Você entrou na lista do Amigo Secreto!`);
+        }
 
+        async function removeParticipant(index) {
+            if (!confirm("Remover este participante da lista compartilhada?")) return;
+            await loadSharedData();
+            participants.splice(index, 1);
+            await saveSharedData();
             renderParticipants();
         }
 
-        function removeParticipant(index) {
-            participants.splice(index, 1);
-            renderParticipants();
+        async function clearAllData() {
+            const senha = prompt("Digite 'ZERAR' para apagar todos os participantes e reiniciar o sorteio:");
+            if (senha === "ZERAR") {
+                participants = [];
+                drawResults = [];
+                await saveSharedData();
+                renderParticipants();
+                renderDrawList();
+                document.getElementById('statusToast').style.display = 'none';
+            }
         }
 
         function renderParticipants() {
             const list = document.getElementById('participantList');
             const badge = document.getElementById('counterBadge');
             list.innerHTML = '';
-            badge.textContent = `${participants.length} participante(s)`;
+            badge.innerHTML = `${participants.length} participante(s) <span onclick="loadSharedData()" style="cursor:pointer; color:#ffd166; margin-left:6px;">🔄 Atualizar</span> ${participants.length > 0 ? '<span onclick="clearAllData()" style="cursor:pointer; color:#ff6b6b; margin-left:6px;">(Zerar)</span>' : ''}`;
 
             participants.forEach((p, index) => {
                 const li = document.createElement('li');
@@ -511,12 +575,18 @@
             });
         }
 
-        // Algoritmo de Embaralhamento Circular (Ninguém tira a si mesmo)
-        function performDraw() {
+        async function performDraw() {
+            await loadSharedData();
+
             if (participants.length < 3) {
-                alert("Cadastre pelo menos 3 pessoas na primeira aba para realizar o Amigo Secreto!");
+                alert("É preciso ter pelo menos 3 amigos cadastrados na lista para sortear!");
                 switchTab('cadastro');
                 return;
+            }
+
+            if (drawResults.length > 0) {
+                const confirmRedo = confirm("O sorteio já foi realizado! Tem certeza que deseja sortear tudo de novo?");
+                if (!confirmRedo) return;
             }
 
             const shuffled = [...participants];
@@ -525,12 +595,12 @@
                 [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
             }
 
-            // Cada pessoa na posição [i] tira a pessoa na posição [i + 1]
             drawResults = shuffled.map((giver, index) => {
                 const receiver = shuffled[(index + 1) % shuffled.length];
                 return { giver, receiver };
             });
 
+            await saveSharedData();
             renderDrawList();
             sendAllEmails();
         }
@@ -538,6 +608,10 @@
         function renderDrawList() {
             const container = document.getElementById('resultsContainer');
             const drawList = document.getElementById('drawList');
+            if (!drawResults || drawResults.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
             container.style.display = 'block';
             drawList.innerHTML = '';
 
@@ -551,7 +625,7 @@
                     </div>
                     <div style="display: flex; gap: 6px;">
                         <button class="btn-small" onclick="revealSecret(${idx})">👀 Tirar na Tela</button>
-                        <button class="btn-small" onclick="sendSingleEmail(${idx})">📩 E-mail</button>
+                        <button class="btn-small" onclick="sendSingleEmail(${idx})">📩 Reenviar E-mail</button>
                     </div>
                 `;
                 drawList.appendChild(card);
@@ -560,7 +634,7 @@
 
         function revealSecret(index) {
             const pair = drawResults[index];
-            const confirmView = confirm(`Você é ${pair.giver.name}? Clique em OK apenas se for você para ver quem você tirou em segredo!`);
+            const confirmView = confirm(`Você é ${pair.giver.name}? Clique em OK apenas se for você!`);
             if (confirmView) {
                 alert(
                     `🎄 Olá, ${pair.giver.name}!\n\n` +
@@ -573,8 +647,7 @@
         async function sendSingleEmail(index) {
             const pair = drawResults[index];
 
-            // Se o EmailJS estiver configurado, envia direto em background
-            if (EMAILJS_CONFIG.ENABLED) {
+            if (EMAILJS_CONFIG.ENABLED && EMAILJS_CONFIG.PUBLIC_KEY !== "SUA_PUBLIC_KEY_AQUI") {
                 try {
                     await emailjs.send(EMAILJS_CONFIG.SERVICE_ID, EMAILJS_CONFIG.TEMPLATE_ID, {
                         to_name: pair.giver.name,
@@ -582,35 +655,23 @@
                         secret_friend: pair.receiver.name,
                         gift_suggestion: pair.receiver.gift
                     });
-                    showToast(`✅ E-mail enviado com sucesso para ${pair.giver.name}!`);
+                    showToast(`✅ E-mail enviado para ${pair.giver.name}!`);
                 } catch (err) {
-                    alert("Erro ao enviar pelo EmailJS. Verifique suas chaves no código.");
+                    alert("Erro ao enviar pelo EmailJS. Verifique suas chaves.");
                     console.error(err);
                 }
-            } else {
-                // Fallback: Abre o cliente de e-mail ou simula o disparo
-                const subject = encodeURIComponent("🎄 Resultado do seu Amigo Secreto!");
-                const body = encodeURIComponent(
-                    `Olá, ${pair.giver.name}! Ho Ho Ho! 🎅\n\n` +
-                    `O sorteio do Amigo Secreto foi realizado!\n` +
-                    `Você tirou: ${pair.receiver.name}\n` +
-                    `🎁 Sugestão de presente dessa pessoa: ${pair.receiver.gift}\n\n` +
-                    `Guarde segredo até o dia da festa!`
-                );
-                window.open(`mailto:${pair.giver.email}?subject=${subject}&body=${body}`);
             }
         }
 
         async function sendAllEmails() {
-            const toast = document.getElementById('statusToast');
-            if (EMAILJS_CONFIG.ENABLED) {
+            if (EMAILJS_CONFIG.ENABLED && EMAILJS_CONFIG.PUBLIC_KEY !== "SUA_PUBLIC_KEY_AQUI") {
                 showToast("⏳ Disparando e-mails para todos os participantes...");
                 for (let i = 0; i < drawResults.length; i++) {
                     await sendSingleEmail(i);
                 }
-                showToast("🎉 Sorteio concluído! Todos receberam seus amigos secretos no e-mail!");
+                showToast("🎉 Sorteio concluído! Todos receberam no e-mail!");
             } else {
-                showToast("✨ Sorteio realizado! Clique em 'Tirar na Tela' ou configure o EmailJS para envio automático.");
+                showToast("✨ Sorteio salvo na nuvem! Todos já podem ver seus nomes.");
             }
         }
 
@@ -619,6 +680,13 @@
             toast.style.display = 'block';
             toast.textContent = message;
         }
+
+        // Carrega a lista ao abrir o site e atualiza sozinho a cada 5 segundos
+        window.addEventListener('DOMContentLoaded', () => {
+            loadSharedData();
+            setInterval(loadSharedData, 5000);
+        });
+    </script>
     </script>
 </body>
 </html>
