@@ -425,7 +425,7 @@
         </section>
     </main>
 
-   <script>
+<script>
         // =========================================================================
         // 1. LINK DO SEU FIREBASE REALTIME DATABASE
         // =========================================================================
@@ -441,7 +441,6 @@
             TEMPLATE_ID: "template_csbvdct"
         };
 
-        // Inicia o EmailJS corretamente com a sua chave
         if (EMAILJS_CONFIG.ENABLED) {
             emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
         }
@@ -451,7 +450,6 @@
         let participants = [];
         let drawResults = [];
 
-        // Busca os dados compartilhados na nuvem (Firebase)
         async function loadSharedData() {
             try {
                 const res = await fetch(`${cleanDbUrl}/amigoSecreto.json`, { cache: "no-store" });
@@ -466,7 +464,6 @@
             }
         }
 
-        // Salva os dados na nuvem para todos os amigos verem
         async function saveSharedData() {
             try {
                 const res = await fetch(`${cleanDbUrl}/amigoSecreto.json`, {
@@ -475,10 +472,10 @@
                     body: JSON.stringify({ participants, drawResults })
                 });
                 if (!res.ok) {
-                    alert("⚠️ O Firebase bloqueou o salvamento! Vá na aba 'Regras' (Rules) do seu Realtime Database e mude read e write para true.");
+                    alert("⚠️ O Firebase bloqueou o salvamento! Verifique as Regras (Rules) do seu Realtime Database.");
                 }
             } catch (err) {
-                alert("Erro ao salvar na nuvem. Verifique sua conexão ou as Regras do Firebase.");
+                alert("Erro ao salvar na nuvem.");
                 console.error(err);
             }
         }
@@ -525,7 +522,7 @@
             emailEl.value = '';
             giftEl.value = '';
             renderParticipants();
-            alert(`🎉 Pronto, ${name}! Você entrou na lista do Amigo Secreto!`);
+            alert(`🎉 Pronto, ${name}! Seu cadastro foi salvo e sua sugestão de presente está secreta!`);
         }
 
         async function removeParticipant(index) {
@@ -548,6 +545,7 @@
             }
         }
 
+        // Renderiza a lista OCULTANDO o e-mail e a sugestão de presente
         function renderParticipants() {
             const list = document.getElementById('participantList');
             const badge = document.getElementById('counterBadge');
@@ -559,9 +557,8 @@
                 li.className = 'participant-item';
                 li.innerHTML = `
                     <div class="participant-info">
-                        <strong>${p.name}</strong>
-                        <span>✉️ ${p.email}</span>
-                        <small>🎁 Sugestão: ${p.gift}</small>
+                        <strong>🎄 ${p.name}</strong>
+                        <small>🔒 E-mail e pedido de presente ocultos (só quem tirar verá)</small>
                     </div>
                     <button class="btn-remove" onclick="removeParticipant(${index})" title="Remover">×</button>
                 `;
@@ -599,6 +596,7 @@
             sendAllEmails();
         }
 
+        // Renderiza a aba de sorteio sem mostrar o e-mail dos participantes
         function renderDrawList() {
             const container = document.getElementById('resultsContainer');
             const drawList = document.getElementById('drawList');
@@ -615,7 +613,7 @@
                 card.innerHTML = `
                     <div>
                         <strong>🎅 ${pair.giver.name}</strong>
-                        <div style="font-size: 0.78rem; color: var(--text-secondary);">${pair.giver.email}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">🔒 Dados protegidos</div>
                     </div>
                     <div style="display: flex; gap: 6px;">
                         <button class="btn-small" onclick="revealSecret(${idx})">👀 Tirar na Tela</button>
@@ -626,15 +624,21 @@
             });
         }
 
+        // Pede o e-mail da pessoa como confirmação antes de revelar na tela!
         function revealSecret(index) {
             const pair = drawResults[index];
-            const confirmView = confirm(`Você é ${pair.giver.name}? Clique em OK apenas se for você!`);
-            if (confirmView) {
+            const typedEmail = prompt(`🔒 Para provar que você é ${pair.giver.name}, digite o seu e-mail cadastrado:`);
+            
+            if (!typedEmail) return;
+
+            if (typedEmail.trim().toLowerCase() === pair.giver.email.toLowerCase()) {
                 alert(
                     `🎄 Olá, ${pair.giver.name}!\n\n` +
                     `Seu Amigo Secreto é: ✨ ${pair.receiver.name} ✨\n` +
-                    `🎁 Sugestão de presente: ${pair.receiver.gift}`
+                    `🎁 Pedido de presente: ${pair.receiver.gift}`
                 );
+            } else {
+                alert("❌ E-mail incorreto! Só o próprio participante pode ver quem tirou.");
             }
         }
 
@@ -659,13 +663,13 @@
 
         async function sendAllEmails() {
             if (EMAILJS_CONFIG.ENABLED) {
-                showToast("⏳ Disparando e-mails para todos os participantes...");
+                showToast("⏳ Disparando e-mails secretos para todos os participantes...");
                 for (let i = 0; i < drawResults.length; i++) {
                     await sendSingleEmail(i);
                 }
-                showToast("🎉 Sorteio concluído! Todos receberam no e-mail!");
+                showToast("🎉 Sorteio concluído! Cada um recebeu seu amigo secreto e a sugestão de presente no e-mail!");
             } else {
-                showToast("✨ Sorteio salvo na nuvem! Todos já podem ver seus nomes.");
+                showToast("✨ Sorteio salvo na nuvem!");
             }
         }
 
