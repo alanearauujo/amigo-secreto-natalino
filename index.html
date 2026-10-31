@@ -73,7 +73,7 @@
 
         header {
             text-align: center;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
 
         header h1 {
@@ -90,6 +90,18 @@
         header p {
             color: var(--text-secondary);
             font-size: 0.92rem;
+        }
+
+        .sync-badge {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffd166;
         }
 
         /* Segmented Control (Abas estilo iOS) */
@@ -265,12 +277,6 @@
             font-size: 0.95rem;
         }
 
-        .participant-info span {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-            display: block;
-        }
-
         .participant-info small {
             display: inline-block;
             margin-top: 4px;
@@ -356,7 +362,8 @@
     <main class="ios-card">
         <header>
             <h1>🎄 Amigo Secreto</h1>
-            <p>Organize sua troca de presentes com estilo</p>
+            <p>Seus pedidos de presente e e-mails ficam 100% secretos</p>
+            <div id="syncStatus" class="sync-badge">🔄 Conectando à lista compartilhada...</div>
         </header>
 
         <!-- Navegação em Abas estilo iOS -->
@@ -368,17 +375,17 @@
         <!-- ABA 1: CADASTRO -->
         <section id="tab-cadastro" class="tab-content active">
             <div class="form-group">
-                <label>Nome da Pessoa</label>
+                <label>Seu Nome</label>
                 <input type="text" id="nameInput" class="ios-input" placeholder="Ex: Ana Clara">
             </div>
 
             <div class="form-group">
-                <label>E-mail (para receber quem tirou)</label>
+                <label>Seu E-mail (Oculto para os outros 🔒)</label>
                 <input type="email" id="emailInput" class="ios-input" placeholder="Ex: ana@email.com">
             </div>
 
             <div class="form-group">
-                <label>Sugestão de Presente 🎁</label>
+                <label>Sugestão de Presente (Secreta para quem te tirar 🎁)</label>
                 <input type="text" id="giftInput" class="ios-input" placeholder="Ex: Livro de suspense, Chocolate, Perfume...">
                 <div class="suggestion-chips">
                     <span class="chip" onclick="addChip('📚 Livros')">📚 Livros</span>
@@ -389,11 +396,11 @@
                 </div>
             </div>
 
-            <button class="btn btn-primary" onclick="addParticipant()">+ Adicionar à Lista</button>
+            <button class="btn btn-primary" onclick="addParticipant()">+ Entrar no Amigo Secreto</button>
 
             <div class="participants-header">
-                <span>Pessoas cadastradas</span>
-                <strong id="counterBadge">0 participantes</strong>
+                <span>Pessoas na roda</span>
+                <strong id="counterBadge">0 participante(s)</strong>
             </div>
 
             <ul id="participantList" class="participant-list"></ul>
@@ -408,7 +415,7 @@
             <div class="draw-status-box">
                 <h3 style="margin-bottom: 8px;">Pronto para misturar os nomes? ✨</h3>
                 <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 18px;">
-                    O algoritmo garante que ninguém tire a si mesmo e que não haja pares fechados isolados.
+                    O algoritmo garante que ninguém tire a si mesmo. Só quem tirou verá o pedido de presente!
                 </p>
                 <button class="btn btn-christmas" onclick="performDraw()">
                     🎲 Realizar Sorteio e Enviar E-mails
@@ -418,14 +425,14 @@
 
             <div id="resultsContainer" style="display: none;">
                 <div class="participants-header">
-                    <span>Painel de Participantes (Conferência / Reenvio)</span>
+                    <span>Painel de Participantes (Acesso Protegido por E-mail)</span>
                 </div>
                 <div id="drawList" class="draw-grid"></div>
             </div>
         </section>
     </main>
 
-<script>
+    <script>
         // =========================================================================
         // 1. LINK DO SEU FIREBASE REALTIME DATABASE
         // =========================================================================
@@ -447,35 +454,70 @@
 
         const cleanDbUrl = FIREBASE_DB_URL.replace(/\/$/, "");
 
-        let participants = [];
-        let drawResults = [];
+        // Carrega imediatamente do backup local enquanto busca da nuvem
+        let participants = JSON.parse(localStorage.getItem('as_participants_backup')) || [];
+        let drawResults = JSON.parse(localStorage.getItem('as_draw_backup')) || [];
 
+        function updateSyncBadge(text, color = "#ffd166") {
+            const badge = document.getElementById('syncStatus');
+            if (badge) {
+                badge.textContent = text;
+                badge.style.color = color;
+            }
+        }
+
+        function saveLocalBackup() {
+            localStorage.setItem('as_participants_backup', JSON.stringify(participants));
+            localStorage.setItem('as_draw_backup', JSON.stringify(drawResults));
+        }
+
+        // Busca os dados compartilhados na nuvem (Firebase)
         async function loadSharedData() {
             try {
-                const res = await fetch(`${cleanDbUrl}/amigoSecreto.json`, { cache: "no-store" });
-                if (!res.ok) throw new Error("Permissão negada no Firebase");
+                const res = await fetch(`${cleanDbUrl}/amigoSecreto.json?t=${Date.now()}`, { cache: "no-store" });
+                if (!res.ok) {
+                    updateSyncBadge("⚠️ Firebase bloqueado (Modo Local Ativo) - libere as Regras no Firebase", "#ff6b6b");
+                    renderParticipants();
+                    renderDrawList();
+                    return;
+                }
                 const data = await res.json();
-                participants = (data && data.participants) ? data.participants : [];
-                drawResults = (data && data.drawResults) ? data.drawResults : [];
+                if (data) {
+                    participants = data.participants || [];
+                    drawResults = data.drawResults || [];
+                    saveLocalBackup();
+                } else if (participants.length > 0) {
+                    // Se a nuvem estava vazia mas já tínhamos dados locais, sobe para a nuvem
+                    await saveSharedData();
+                }
+                updateSyncBadge("☁️ Lista Sincronizada na Nuvem", "#34c759");
                 renderParticipants();
                 renderDrawList();
             } catch (err) {
                 console.error("Erro ao carregar dados da nuvem:", err);
+                updateSyncBadge("💾 Salvo no Aparelho (Sem conexão com Firebase)", "#ffd166");
+                renderParticipants();
+                renderDrawList();
             }
         }
 
-        async function saveSharedData() {
+        // Salva no navegador imediatamente E envia para a nuvem do Firebase
+        async function saveSharedData(isReset = false) {
+            saveLocalBackup();
             try {
+                const payload = isReset ? null : { participants, drawResults };
                 const res = await fetch(`${cleanDbUrl}/amigoSecreto.json`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ participants, drawResults })
+                    body: JSON.stringify(payload)
                 });
                 if (!res.ok) {
-                    alert("⚠️ O Firebase bloqueou o salvamento! Verifique as Regras (Rules) do seu Realtime Database.");
+                    updateSyncBadge("⚠️ Salvo apenas neste aparelho (Libere as Rules no Firebase)", "#ff6b6b");
+                } else {
+                    updateSyncBadge("☁️ Salvo e Sincronizado na Nuvem!", "#34c759");
                 }
             } catch (err) {
-                alert("Erro ao salvar na nuvem.");
+                updateSyncBadge("💾 Salvo apenas neste aparelho", "#ffd166");
                 console.error(err);
             }
         }
@@ -522,30 +564,31 @@
             emailEl.value = '';
             giftEl.value = '';
             renderParticipants();
-            alert(`🎉 Pronto, ${name}! Seu cadastro foi salvo e sua sugestão de presente está secreta!`);
+            alert(`🎉 Pronto, ${name}! Seu cadastro foi salvo e seu pedido de presente está 100% oculto!`);
         }
 
         async function removeParticipant(index) {
-            if (!confirm("Remover este participante da lista compartilhada?")) return;
-            await loadSharedData();
+            if (!confirm("Remover este participante da lista?")) return;
             participants.splice(index, 1);
-            await saveSharedData();
+            await saveSharedData(participants.length === 0 && drawResults.length === 0);
             renderParticipants();
         }
 
         async function clearAllData() {
             const senha = prompt("Digite 'ZERAR' para apagar todos os participantes e reiniciar o sorteio:");
-            if (senha === "ZERAR") {
+            if (senha && senha.trim().toUpperCase() === "ZERAR") {
                 participants = [];
                 drawResults = [];
-                await saveSharedData();
+                localStorage.removeItem('as_participants_backup');
+                localStorage.removeItem('as_draw_backup');
+                await saveSharedData(true);
                 renderParticipants();
                 renderDrawList();
                 document.getElementById('statusToast').style.display = 'none';
             }
         }
 
-        // Renderiza a lista OCULTANDO o e-mail e a sugestão de presente
+        // Renderiza a lista OCULTANDO o e-mail e o pedido de presente
         function renderParticipants() {
             const list = document.getElementById('participantList');
             const badge = document.getElementById('counterBadge');
@@ -558,7 +601,7 @@
                 li.innerHTML = `
                     <div class="participant-info">
                         <strong>🎄 ${p.name}</strong>
-                        <small>🔒 E-mail e pedido de presente ocultos (só quem tirar verá)</small>
+                        <small>🔒 E-mail e presente secretos (só quem tirar verá)</small>
                     </div>
                     <button class="btn-remove" onclick="removeParticipant(${index})" title="Remover">×</button>
                 `;
@@ -596,7 +639,7 @@
             sendAllEmails();
         }
 
-        // Renderiza a aba de sorteio sem mostrar o e-mail dos participantes
+        // Renderiza a aba de sorteio sem mostrar e-mail nem presente
         function renderDrawList() {
             const container = document.getElementById('resultsContainer');
             const drawList = document.getElementById('drawList');
@@ -613,7 +656,7 @@
                 card.innerHTML = `
                     <div>
                         <strong>🎅 ${pair.giver.name}</strong>
-                        <div style="font-size: 0.75rem; color: var(--text-secondary);">🔒 Dados protegidos</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">🔒 E-mail e amigo ocultos</div>
                     </div>
                     <div style="display: flex; gap: 6px;">
                         <button class="btn-small" onclick="revealSecret(${idx})">👀 Tirar na Tela</button>
@@ -624,7 +667,7 @@
             });
         }
 
-        // Pede o e-mail da pessoa como confirmação antes de revelar na tela!
+        // Exige o e-mail da pessoa como senha antes de mostrar quem ela tirou e o presente!
         function revealSecret(index) {
             const pair = drawResults[index];
             const typedEmail = prompt(`🔒 Para provar que você é ${pair.giver.name}, digite o seu e-mail cadastrado:`);
@@ -667,9 +710,9 @@
                 for (let i = 0; i < drawResults.length; i++) {
                     await sendSingleEmail(i);
                 }
-                showToast("🎉 Sorteio concluído! Cada um recebeu seu amigo secreto e a sugestão de presente no e-mail!");
+                showToast("🎉 Sorteio concluído! Cada um recebeu seu amigo secreto e o presente no e-mail!");
             } else {
-                showToast("✨ Sorteio salvo na nuvem!");
+                showToast("✨ Sorteio salvo!");
             }
         }
 
@@ -679,7 +722,10 @@
             toast.textContent = message;
         }
 
+        // Renderiza imediatamente e sincroniza com a nuvem
         window.addEventListener('DOMContentLoaded', () => {
+            renderParticipants();
+            renderDrawList();
             loadSharedData();
             setInterval(loadSharedData, 5000);
         });
