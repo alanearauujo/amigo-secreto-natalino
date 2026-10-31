@@ -698,33 +698,9 @@
                     });
                     showToast(`✅ E-mail enviado para ${pair.giver.name}!`);
                 } catch (err) {
-                    const detalheErro = err?.text || err?.message || JSON.stringify(err);
-                    alert(`Erro no EmailJS: ${detalheErro}`);
-                    console.error("Detalhes do erro EmailJS:", err);
+                    alert("Erro ao enviar pelo EmailJS. Verifique suas chaves.");
+                    console.error(err);
                 }
-            }
-        }
-
-                        EMAILJS_CONFIG.SERVICE_ID,
-                        EMAILJS_CONFIG.TEMPLATE_ID,
-                        {
-                            to_name: pair.giver.name,
-                            to_email: pair.giver.email,
-                            secret_friend: pair.receiver.name,
-                            gift_suggestion: pair.receiver.gift
-                        },
-                        {
-                            publicKey: EMAILJS_CONFIG.PUBLIC_KEY
-                        }
-                    );
-                    showToast(`✅ E-mail enviado para ${pair.giver.name}!`);
-                } catch (err) {
-                    const detalheErro = err?.text || err?.message || JSON.stringify(err);
-                    alert(`Erro no EmailJS: ${detalheErro}`);
-                    console.error("Detalhes do erro EmailJS:", err);
-                }
-            }
-        }
             }
         }
 
